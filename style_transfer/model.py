@@ -353,7 +353,7 @@ class Model(nn.Module):
         return out_dict
 
 
-    def test_interpolation(self, co_data, cl_b, cl_c, num=3):
+    def test_interpolate(self, co_data, cl_b, cl_c, proportion):
         '''For interpolation'''
         self.eval()
         self.gen.eval()
@@ -376,71 +376,89 @@ class Model(nn.Module):
             s_xb = self.gen.enc_style(yb, stylestr[-2:])
             s_xc = self.gen.enc_style(yc, stylestr[-2:])
 
-            def itp(s, t, num):
-                num = num + 1.0
-                d = (t - s) / num
-                ret = []
-                for i in range(int(num + 1)):
-                    ret.append(s + i * d)
-                return ret
+            _, rxt = self.gen.decode(c_xa, (s_xb * proportion + (1 - proportion)*s_xc))
+            _, rxr = self.gen.decode(c_xa, s_xa)
+            
+            full_r = self.merge_pos_glb(rxr, xglb)
+            full_t = self.merge_pos_glb(rxt, xglb)
+            # def itp(s, t, num):
+            #     num = num + 1.0
+            #     d = (t - s) / num
+            #     ret = []
+            #     for i in range(int(num + 1)):
+            #         ret.append(s + i * d)
+            #     return ret
 
-            def itp_outs(s, t, num, c, glb):
-                scodes = itp(s, t, num)
-                xs = []
-                rxs = []
-                for s in scodes:
-                    x, rx = self.gen.decode(c, s)
-                    x = self.merge_pos_glb(x, glb)
-                    xs.append(x)
-                    rxs.append(rx)
-                return xs, rxs
+            # def itp_outs(s, t, num, c, glb):
+            #     scodes = itp(s, t, num)
+            #     xs = []
+            #     rxs = []
+            #     for s in scodes:
+            #         x, rx = self.gen.decode(c, s)
+            #         x = self.merge_pos_glb(x, glb)
+            #         xs.append(x)
+            #         rxs.append(rx)
+            #     return xs, rxs
 
-            sab_outs = itp_outs(s_xa, s_xb, num, c_xa, xglb)
-            sbc_outs = itp_outs(s_xb, s_xc, num, c_xa, xglb)
+            # sab_outs = itp_outs(s_xa, s_xb, num, c_xa, xglb)
+            # sbc_outs = itp_outs(s_xb, s_xc, num, c_xa, xglb)
 
         self.train()
 
-        rd = {
-            "content": [],
-            "content_rot": [],
-            "foot_contact": [],
-            "content_label": [],
-            "style_label": [],
-            "style2_label": [],
-            "style": [],
-            "style2": [],
-            "style_rot": [],
-            "style2_rot": [],
-            "trans": [],
-            "trans_rot": [],
-            "info": []
+        out_dict = {
+            "content_meta": co_data["meta"],
+            "style_meta_1": cl_b["meta"],
+            "style_meta_2": cl_c["meta"],
+            "foot_contact": co_data["foot_contact"],
+            "content": co_data["contentraw"],
+            "recon": full_r,
+            "trans": full_t,
         }
 
-        cont_label = co_data["label"]
-        style_label = cl_b["label"]
-        style2_label = cl_c["label"]
-        ft = co_data["foot_contact"]
-        cont_rot = co_data["contentraw"]
-        style_rot = cl_b["contentraw"]
-        style2_rot = cl_c["contentraw"]
+        out_dict["style"] = cl_b["contentraw"]
 
-        for prefix, outs in zip(["ab", "bc"], [sab_outs, sbc_outs]):
-            for i, (x, xr) in enumerate(zip(*outs)):
-                rd["content"].append(xtgt)
-                rd["style"].append(ybo)
-                rd["style2"].append(yco)
-                rd["content_rot"].append(cont_rot)
-                rd["foot_contact"].append(ft)
-                rd["content_label"].append(cont_label)
-                rd["style_label"].append(style_label)
-                rd["style2_label"].append(style2_label)
-                rd["style_rot"].append(style_rot)
-                rd["style2_rot"].append(style2_rot)
-                rd["trans"].append(x)
-                rd["trans_rot"].append(xr)
-                rd["info"].append(prefix + "_%d" % i)
+        return out_dict
+        # rd = {
+        #     "content": [],
+        #     "content_rot": [],
+        #     "foot_contact": [],
+        #     "content_label": [],
+        #     "style_label": [],
+        #     "style2_label": [],
+        #     "style": [],
+        #     "style2": [],
+        #     "style_rot": [],
+        #     "style2_rot": [],
+        #     "trans": [],
+        #     "trans_rot": [],
+        #     "info": []
+        # }
 
-        return rd
+        # cont_label = co_data["label"]
+        # style_label = cl_b["label"]
+        # style2_label = cl_c["label"]
+        # ft = co_data["foot_contact"]
+        # cont_rot = co_data["contentraw"]
+        # style_rot = cl_b["contentraw"]
+        # style2_rot = cl_c["contentraw"]
+
+        # for prefix, outs in zip(["ab", "bc"], [sab_outs, sbc_outs]):
+        #     for i, (x, xr) in enumerate(zip(*outs)):
+        #         rd["content"].append(xtgt)
+        #         rd["style"].append(ybo)
+        #         rd["style2"].append(yco)
+        #         rd["content_rot"].append(cont_rot)
+        #         rd["foot_contact"].append(ft)
+        #         rd["content_label"].append(cont_label)
+        #         rd["style_label"].append(style_label)
+        #         rd["style2_label"].append(style2_label)
+        #         rd["style_rot"].append(style_rot)
+        #         rd["style2_rot"].append(style2_rot)
+        #         rd["trans"].append(x)
+        #         rd["trans_rot"].append(xr)
+        #         rd["info"].append(prefix + "_%d" % i)
+
+        # return rd
 
     def get_latent_codes(self, data):
         '''For latent code extraction'''

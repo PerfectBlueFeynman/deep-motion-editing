@@ -97,6 +97,9 @@ class Trainer(nn.Module):
     def test(self, co_data, cl_data, status):
         return self.model.test(co_data, cl_data, status)
 
+    def test_interpolate(self, co_data, cl_b, cl_c, proportion):
+        return self.model.test_interpolate(co_data, cl_b, cl_c, proportion)
+
     def test_rec(self, data):
         return self.model.test_rec(data)
 
